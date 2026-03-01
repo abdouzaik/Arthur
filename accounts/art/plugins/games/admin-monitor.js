@@ -34,15 +34,29 @@ if (!global[HANDLER_ID]) {
             let authorPn  = authorRaw;
 
             try {
-                const [metadata, inviteCode] = await Promise.all([
-                    sock.groupMetadata(groupId),
-                    sock.groupInviteCode(groupId).catch(() => null)
-                ]);
-
+                const metadata = await sock.groupMetadata(groupId);
                 groupName = metadata.subject || groupId;
-                groupLink = inviteCode
-                    ? `https://chat.whatsapp.com/${inviteCode}`
-                    : groupId;
+
+                // ✅ جرب جلب الرابط — لو البوت مشرف يشتغل، لو لا يجرب inviteInfo
+                let inviteCode = null;
+                try {
+                    inviteCode = await sock.groupInviteCode(groupId);
+                } catch {
+                    // البوت مش مشرف — جرب groupInviteInfo كبديل
+                    try {
+                        const info = await sock.groupInviteInfo(groupId);
+                        inviteCode = info?.inviteCode || null;
+                    } catch {}
+                }
+
+                // لو فشل كل شي — ابني الرابط من الـ ID مباشرة
+                if (inviteCode) {
+                    groupLink = `https://chat.whatsapp.com/${inviteCode}`;
+                } else {
+                    // تنسيق الـ ID كرابط مقروء
+                    const shortId = groupId.replace("@g.us", "");
+                    groupLink = `https://chat.whatsapp.com/invite/${shortId}`;
+                }
 
                 // لو author جاء @lid — دور عليه في participants
                 if (authorRaw.endsWith("@lid")) {
